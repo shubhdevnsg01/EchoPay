@@ -1,33 +1,13 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-type TransactionType = 'sent' | 'received';
-
-type Transaction = {
+type Payment = {
   id: string;
   amount: number;
-  counterparty: string;
-  type: TransactionType;
-  createdAt: string;
+  payerName: string;
+  paidAt: string;
 };
 
-const transactionsApi = 'http://localhost:8081';
-
-const fallbackTransactions: Transaction[] = [
-  {
-    id: 'demo-1',
-    amount: 250,
-    counterparty: 'Asha',
-    type: 'sent',
-    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'demo-2',
-    amount: 500,
-    counterparty: 'Office Reimbursement',
-    type: 'received',
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString()
-  }
-];
+const apiBaseUrl = 'http://localhost:8080';
 
 const formatAmount = (amount: number): string =>
   new Intl.NumberFormat('en-IN', {
@@ -36,219 +16,94 @@ const formatAmount = (amount: number): string =>
     maximumFractionDigits: 2
   }).format(amount);
 
-const formatTime = (iso: string): string =>
-  new Date(iso).toLocaleString('en-IN', {
+const formatTime = (isoTime: string): string =>
+  new Date(isoTime).toLocaleString('en-IN', {
     dateStyle: 'medium',
     timeStyle: 'short'
   });
 
-const buildSpeechText = (transaction: Transaction): string => {
-  const action = transaction.type === 'sent' ? 'paid to' : 'received from';
-  return `${formatAmount(transaction.amount)} ${action} ${transaction.counterparty} on ${formatTime(transaction.createdAt)}`;
+const buildSpeechText = (payment: Payment): string => {
+  const time = formatTime(payment.paidAt);
+  return `${formatAmount(payment.amount)} paid to ${payment.payerName} on ${time}`;
 };
 
 export default function App() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [selectedId, setSelectedId] = useState<string>('');
-  const [sendName, setSendName] = useState<string>('');
-  const [sendAmount, setSendAmount] = useState<string>('');
-  const [receiveName, setReceiveName] = useState<string>('');
-  const [receiveAmount, setReceiveAmount] = useState<string>('');
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [info, setInfo] = useState<string>('');
-  const transactionsRef = useRef<HTMLElement | null>(null);
-
-  const selectedTransaction = useMemo(
-    () => transactions.find((transaction) => transaction.id === selectedId) ?? null,
-    [selectedId, transactions]
-  );
-
-  const setInitialSelection = (items: Transaction[]): void => {
-    if (items.length > 0) {
-      setSelectedId((current) => current || items[0].id);
-    }
-  };
-
-  const scrollToTransactions = (): void => {
-    transactionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const loadTransactions = async (): Promise<void> => {
-    const response = await fetch(`${transactionsApi}/api/transactions`);
-    if (!response.ok) {
-      throw new Error('Could not fetch transactions');
-    }
-
-    const payload = (await response.json()) as Transaction[];
-    setTransactions(payload);
-    setInitialSelection(payload);
-  };
 
   useEffect(() => {
-    loadTransactions().catch(() => {
-      setTransactions(fallbackTransactions);
-      setInitialSelection(fallbackTransactions);
-      setError('Transactions service not reachable. Showing demo transactions on homepage.');
+    const loadPayments = async (): Promise<void> => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/payments`);
+        if (!response.ok) {
+          throw new Error('Could not fetch payments');
+        }
+        const data = (await response.json()) as Payment[];
+        setPayments(data);
+        if (data.length > 0) {
+          setSelectedPaymentId(data[0].id);
+        }
+      } catch {
+        setError('Unable to load payments. Please ensure backend is running on port 8080.');
+      }
+    };
+
+    loadPayments().catch(() => {
+      setError('Unable to load payments.');
     });
   }, []);
 
-  const submitTransaction = async (
-    event: FormEvent,
-    type: TransactionType,
-    name: string,
-    amount: string
-  ): Promise<void> => {
-    event.preventDefault();
-    setError('');
-    setInfo('');
+  const selectedPayment = useMemo(
+    () => payments.find((payment) => payment.id === selectedPaymentId) ?? null,
+    [payments, selectedPaymentId]
+  );
 
-    const numericAmount = Number(amount);
-    if (!name.trim() || Number.isNaN(numericAmount) || numericAmount <= 0) {
-      setError('Enter a valid name and amount.');
-      return;
-    }
-
-    const response = await fetch(`${transactionsApi}/api/transactions/${type === 'sent' ? 'send' : 'receive'}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: numericAmount,
-        counterparty: name.trim()
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('failed to create transaction');
-    }
-
-    if (type === 'sent') {
-      setSendName('');
-      setSendAmount('');
-      setInfo('Payment sent. Opening My Transactions.');
-    } else {
-      setReceiveName('');
-      setReceiveAmount('');
-      setInfo('Payment received. Opening My Transactions.');
-    }
-
-    await loadTransactions();
-    scrollToTransactions();
-  };
-
-  const handleSubmit = (type: TransactionType) => async (event: FormEvent): Promise<void> => {
-    try {
-      const name = type === 'sent' ? sendName : receiveName;
-      const amount = type === 'sent' ? sendAmount : receiveAmount;
-      await submitTransaction(event, type, name, amount);
-    } catch {
-      setError('Transaction failed. Please retry.');
-    }
-  };
-
-  const speakSelected = (): void => {
-    if (!selectedTransaction || !window.speechSynthesis) {
+  const speakPayment = (): void => {
+    if (!selectedPayment || typeof window === 'undefined' || !window.speechSynthesis) {
       return;
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(buildSpeechText(selectedTransaction));
+    const utterance = new SpeechSynthesisUtterance(buildSpeechText(selectedPayment));
     utterance.lang = 'en-IN';
     utterance.rate = 0.95;
     window.speechSynthesis.speak(utterance);
   };
 
   return (
-    <main className="app-shell">
-      <header>
-        <h1>EchoPay Accessible UPI</h1>
-        <p>My Transactions is now shown directly on homepage. Select any item and tap voice.</p>
-        <button type="button" className="jump-btn" onClick={scrollToTransactions}>
-          Go to My Transactions
-        </button>
-      </header>
+    <main className="container">
+      <h1>EchoPay UPI (Accessible Mode)</h1>
+      <p className="subtitle">Tap any payment and use the voice button to hear amount, name and time.</p>
 
       {error ? <p className="error">{error}</p> : null}
-      {info ? <p className="info">{info}</p> : null}
 
-      <section className="home-grid" aria-label="UPI homepage">
-        <div className="actions-grid" aria-label="Payment actions">
-          <form className="card" onSubmit={handleSubmit('sent')}>
-            <h2>Make Payment</h2>
-            <label>
-              Person name
-              <input value={sendName} onChange={(event) => setSendName(event.target.value)} placeholder="Enter name" />
-            </label>
-            <label>
-              Amount
-              <input
-                value={sendAmount}
-                onChange={(event) => setSendAmount(event.target.value)}
-                placeholder="Enter amount"
-                inputMode="decimal"
-              />
-            </label>
-            <button type="submit" className="primary sent">
-              Send Money
-            </button>
-          </form>
-
-          <form className="card" onSubmit={handleSubmit('received')}>
-            <h2>Receive Payment</h2>
-            <label>
-              Sender name
-              <input
-                value={receiveName}
-                onChange={(event) => setReceiveName(event.target.value)}
-                placeholder="Enter name"
-              />
-            </label>
-            <label>
-              Amount
-              <input
-                value={receiveAmount}
-                onChange={(event) => setReceiveAmount(event.target.value)}
-                placeholder="Enter amount"
-                inputMode="decimal"
-              />
-            </label>
-            <button type="submit" className="primary receive">
-              Mark as Received
-            </button>
-          </form>
-        </div>
-
-        <section
-          ref={transactionsRef}
-          className="card transactions"
-          aria-label="My transactions column"
-          id="my-transactions"
-        >
-          <h2>My Transactions (Homepage)</h2>
-          <div className="transactions-list">
-            {transactions.length === 0 ? <p className="muted">No transactions yet. Make/receive a payment first.</p> : null}
-            {transactions.map((transaction) => (
-              <button
-                key={transaction.id}
-                className={`transaction-item ${selectedId === transaction.id ? 'selected' : ''}`}
-                onClick={() => setSelectedId(transaction.id)}
-                aria-label={`${transaction.type} ${formatAmount(transaction.amount)} ${transaction.counterparty} ${formatTime(
-                  transaction.createdAt
-                )}`}
-              >
-                <strong>
-                  {transaction.type === 'sent' ? 'Paid to' : 'Received from'} {transaction.counterparty}
-                </strong>
-                <span>{formatAmount(transaction.amount)}</span>
-                <span>{formatTime(transaction.createdAt)}</span>
-              </button>
-            ))}
-          </div>
-
-          <button type="button" className="voice" onClick={speakSelected} disabled={!selectedTransaction}>
-            🔊 Speak selected transaction
+      <section aria-label="Recent UPI payments" className="payments-list">
+        {payments.map((payment) => (
+          <button
+            key={payment.id}
+            className={`payment-item ${selectedPaymentId === payment.id ? 'active' : ''}`}
+            onClick={() => setSelectedPaymentId(payment.id)}
+            aria-label={`Payment to ${payment.payerName}, ${formatAmount(payment.amount)}, ${formatTime(
+              payment.paidAt
+            )}`}
+          >
+            <span>{payment.payerName}</span>
+            <span>{formatAmount(payment.amount)}</span>
+            <span className="time">{formatTime(payment.paidAt)}</span>
           </button>
-        </section>
+        ))}
       </section>
+
+      <button
+        type="button"
+        className="speak-btn"
+        onClick={speakPayment}
+        disabled={!selectedPayment}
+        aria-label="Speak selected payment details"
+      >
+        🔊 Speak payment details
+      </button>
     </main>
   );
 }
