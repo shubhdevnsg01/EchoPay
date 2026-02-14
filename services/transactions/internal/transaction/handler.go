@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 type Handler struct {
@@ -13,46 +14,58 @@ func NewHandler(store *Store) *Handler {
 	return &Handler{store: store}
 }
 
-type createTransactionRequest struct {
-	Amount       float64 `json:"amount"`
-	Counterparty string  `json:"counterparty"`
+type transferResponse struct {
+	FromUserLog Transaction `json:"fromUserLog"`
+	ToUserLog   Transaction `json:"toUserLog"`
 }
 
-func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleListByUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	respondJSON(w, http.StatusOK, h.store.List())
+
+	user, ok := parseUserFromPath(r.URL.Path)
+	if !ok {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	logs, err := h.store.ListByUser(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	respondJSON(w, http.StatusOK, logs)
 }
 
-func (h *Handler) HandleSend(w http.ResponseWriter, r *http.Request) {
-	h.handleCreateByType(w, r, TransactionTypeSent)
-}
-
-func (h *Handler) HandleReceive(w http.ResponseWriter, r *http.Request) {
-	h.handleCreateByType(w, r, TransactionTypeReceived)
-}
-
-func (h *Handler) handleCreateByType(w http.ResponseWriter, r *http.Request, transactionType TransactionType) {
+func (h *Handler) HandleTransfer(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	var req createTransactionRequest
+	var req TransferRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if req.Amount <= 0 || req.Counterparty == "" {
-		http.Error(w, "amount and counterparty are required", http.StatusBadRequest)
+	fromLog, toLog, err := h.store.Transfer(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	created := h.store.Add(req.Amount, req.Counterparty, transactionType)
-	respondJSON(w, http.StatusCreated, created)
+	respondJSON(w, http.StatusCreated, transferResponse{FromUserLog: fromLog, ToUserLog: toLog})
+}
+
+func parseUserFromPath(path string) (UserID, bool) {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) != 4 || parts[0] != "api" || parts[1] != "channels" || parts[3] != "transactions" {
+		return "", false
+	}
+	return UserID(parts[2]), true
 }
 
 func respondJSON(w http.ResponseWriter, status int, payload any) {

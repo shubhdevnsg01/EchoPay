@@ -8,64 +8,59 @@ import (
 	"testing"
 )
 
-func TestHandleList(t *testing.T) {
+func TestHandleListByUser(t *testing.T) {
 	handler := NewHandler(NewStore())
-	req := httptest.NewRequest(http.MethodGet, "/api/transactions", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/channels/user-a/transactions", nil)
 	rr := httptest.NewRecorder()
 
-	handler.HandleList(rr, req)
+	handler.HandleListByUser(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rr.Code)
 	}
 
-	var transactions []Transaction
-	if err := json.Unmarshal(rr.Body.Bytes(), &transactions); err != nil {
+	var logs []Transaction
+	if err := json.Unmarshal(rr.Body.Bytes(), &logs); err != nil {
 		t.Fatalf("response should be JSON: %v", err)
 	}
-	if len(transactions) == 0 {
-		t.Fatal("expected seeded transactions")
+	if len(logs) == 0 {
+		t.Fatal("expected seeded logs")
 	}
 }
 
-func TestHandleSend(t *testing.T) {
+func TestHandleTransfer(t *testing.T) {
 	handler := NewHandler(NewStore())
-	payload := bytes.NewBufferString(`{"amount":99.5,"counterparty":"Kabir"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/transactions/send", payload)
+	payload := bytes.NewBufferString(`{"fromUser":"user-a","toUser":"user-b","amount":99.5}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/channels/transfer", payload)
 	rr := httptest.NewRecorder()
 
-	handler.HandleSend(rr, req)
+	handler.HandleTransfer(rr, req)
 
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d", rr.Code)
 	}
 
-	var transaction Transaction
-	if err := json.Unmarshal(rr.Body.Bytes(), &transaction); err != nil {
+	var resp transferResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("response should be JSON: %v", err)
 	}
-	if transaction.Type != TransactionTypeSent {
-		t.Fatalf("expected sent type, got %s", transaction.Type)
+	if resp.FromUserLog.Direction != DirectionSent {
+		t.Fatalf("expected sent direction for sender, got %s", resp.FromUserLog.Direction)
+	}
+	if resp.ToUserLog.Direction != DirectionReceived {
+		t.Fatalf("expected received direction for receiver, got %s", resp.ToUserLog.Direction)
 	}
 }
 
-func TestHandleReceive(t *testing.T) {
+func TestHandleTransferRejectsInvalidUsers(t *testing.T) {
 	handler := NewHandler(NewStore())
-	payload := bytes.NewBufferString(`{"amount":501,"counterparty":"Divya"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/transactions/receive", payload)
+	payload := bytes.NewBufferString(`{"fromUser":"user-a","toUser":"user-a","amount":99.5}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/channels/transfer", payload)
 	rr := httptest.NewRecorder()
 
-	handler.HandleReceive(rr, req)
+	handler.HandleTransfer(rr, req)
 
-	if rr.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d", rr.Code)
-	}
-
-	var transaction Transaction
-	if err := json.Unmarshal(rr.Body.Bytes(), &transaction); err != nil {
-		t.Fatalf("response should be JSON: %v", err)
-	}
-	if transaction.Type != TransactionTypeReceived {
-		t.Fatalf("expected received type, got %s", transaction.Type)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rr.Code)
 	}
 }

@@ -12,9 +12,8 @@ func main() {
 	handler := transaction.NewHandler(store)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/transactions", handler.HandleList)
-	mux.HandleFunc("/api/transactions/send", handler.HandleSend)
-	mux.HandleFunc("/api/transactions/receive", handler.HandleReceive)
+	mux.HandleFunc("/api/channels/transfer", handler.HandleTransfer)
+	mux.HandleFunc("/api/channels/", handler.HandleListByUser)
 
 	server := &http.Server{Addr: ":8081", Handler: withCORS(mux)}
 	log.Println("Transactions service listening on http://localhost:8081")

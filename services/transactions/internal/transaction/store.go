@@ -1,49 +1,110 @@
 package transaction
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 )
 
+var errInvalidUsers = errors.New("only user-a and user-b are supported")
+
 type Store struct {
-	mu           sync.RWMutex
-	transactions []Transaction
-	nextID       int
+	mu     sync.RWMutex
+	logs   map[UserID][]Transaction
+	nextID int
 }
 
 func NewStore() *Store {
+	now := time.Now()
 	return &Store{
-		nextID: 4,
-		transactions: []Transaction{
-			{ID: "1", Amount: 250, Counterparty: "Asha", Type: TransactionTypeSent, CreatedAt: time.Now().Add(-4 * time.Hour)},
-			{ID: "2", Amount: 500, Counterparty: "Office Reimbursement", Type: TransactionTypeReceived, CreatedAt: time.Now().Add(-2 * time.Hour)},
-			{ID: "3", Amount: 120, Counterparty: "Rohit", Type: TransactionTypeSent, CreatedAt: time.Now().Add(-45 * time.Minute)},
+		nextID: 3,
+		logs: map[UserID][]Transaction{
+			UserA: {
+				{
+					ID:           "1",
+					Channel:      channelName(UserA, UserB),
+					User:         UserA,
+					Counterparty: UserB,
+					Direction:    DirectionSent,
+					Amount:       120,
+					CreatedAt:    now.Add(-40 * time.Minute),
+				},
+			},
+			UserB: {
+				{
+					ID:           "2",
+					Channel:      channelName(UserA, UserB),
+					User:         UserB,
+					Counterparty: UserA,
+					Direction:    DirectionReceived,
+					Amount:       120,
+					CreatedAt:    now.Add(-40 * time.Minute),
+				},
+			},
 		},
 	}
 }
 
-func (s *Store) List() []Transaction {
+func (s *Store) ListByUser(user UserID) ([]Transaction, error) {
+	if !isValidUser(user) {
+		return nil, errInvalidUsers
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	output := make([]Transaction, len(s.transactions))
-	copy(output, s.transactions)
-	return output
+	transactions := s.logs[user]
+	out := make([]Transaction, len(transactions))
+	copy(out, transactions)
+	return out, nil
 }
 
-func (s *Store) Add(amount float64, counterparty string, transactionType TransactionType) Transaction {
+func (s *Store) Transfer(req TransferRequest) (Transaction, Transaction, error) {
+	if !isValidUser(req.FromUser) || !isValidUser(req.ToUser) || req.FromUser == req.ToUser {
+		return Transaction{}, Transaction{}, errInvalidUsers
+	}
+	if req.Amount <= 0 {
+		return Transaction{}, Transaction{}, errors.New("amount must be greater than 0")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	entry := Transaction{
+	now := time.Now()
+	fromEntry := Transaction{
 		ID:           fmt.Sprintf("%d", s.nextID),
-		Amount:       amount,
-		Counterparty: counterparty,
-		Type:         transactionType,
-		CreatedAt:    time.Now(),
+		Channel:      channelName(req.FromUser, req.ToUser),
+		User:         req.FromUser,
+		Counterparty: req.ToUser,
+		Direction:    DirectionSent,
+		Amount:       req.Amount,
+		CreatedAt:    now,
 	}
 	s.nextID++
-	s.transactions = append([]Transaction{entry}, s.transactions...)
-	return entry
+	toEntry := Transaction{
+		ID:           fmt.Sprintf("%d", s.nextID),
+		Channel:      channelName(req.FromUser, req.ToUser),
+		User:         req.ToUser,
+		Counterparty: req.FromUser,
+		Direction:    DirectionReceived,
+		Amount:       req.Amount,
+		CreatedAt:    now,
+	}
+	s.nextID++
+
+	s.logs[req.FromUser] = append([]Transaction{fromEntry}, s.logs[req.FromUser]...)
+	s.logs[req.ToUser] = append([]Transaction{toEntry}, s.logs[req.ToUser]...)
+	return fromEntry, toEntry, nil
+}
+
+func isValidUser(user UserID) bool {
+	return user == UserA || user == UserB
+}
+
+func channelName(a UserID, b UserID) string {
+	if a == UserA && b == UserB || a == UserB && b == UserA {
+		return "user-a<->user-b"
+	}
+	return "unsupported"
 }

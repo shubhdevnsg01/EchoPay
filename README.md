@@ -3,18 +3,17 @@
 EchoPay is a full-stack accessibility-first UPI demo for blind and low-vision users.
 
 ## What was added
-- A dedicated **Transactions microservice** where users can:
-  1. Make a payment (send money)
-  2. Receive a payment
-  3. See **My Transactions** directly on homepage (or tap the bright sticky **📌 My Transactions** label at top-right) and tap any transaction
-  4. Press the voice button to hear amount, person name, and time
-- A mobile-friendly React UI for smaller screens.
-- If transactions service is down, demo transactions are still shown so the homepage section stays visible.
+- Exactly **two users only** with two separate windows:
+  - **User A window**
+  - **User B window**
+- Transfers are allowed only between these two users via a single channel (`user-a <-> user-b`).
+- Each user has a separate transaction log panel, and each can select an item and use voice playback.
+- A sticky "Jump to User Logs" button keeps the logs discoverable.
 
 ## Architecture
-- `backend/` (existing): starter payment API service on port `8080`
-- `services/transactions/` (new): transactions microservice on port `8081`
-- `frontend/`: React app consuming transactions microservice
+- `backend/` (existing): starter payment API service on port `8080`.
+- `services/transactions/` (updated): two-user channel service on port `8081`.
+- `frontend/`: React app with two user windows and separate logs.
 
 ## Run locally
 
@@ -33,15 +32,16 @@ npm run dev
 ```
 Runs on `http://localhost:5173`.
 
-## Transactions API (microservice)
-- `GET /api/transactions`
-- `POST /api/transactions/send`
-- `POST /api/transactions/receive`
+## Transactions API (two-user channel)
+- `GET /api/channels/user-a/transactions`
+- `GET /api/channels/user-b/transactions`
+- `POST /api/channels/transfer`
 
-Example request:
+Example transfer request:
 ```json
 {
-  "amount": 320.5,
-  "counterparty": "Ananya"
+  "fromUser": "user-a",
+  "toUser": "user-b",
+  "amount": 320.5
 }
 ```
