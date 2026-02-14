@@ -6,9 +6,10 @@ EchoPay is a full-stack accessibility-first UPI demo for blind and low-vision us
 - A dedicated **Transactions microservice** where users can:
   1. Make a payment (send money)
   2. Receive a payment
-  3. Open **My Transactions** and tap any transaction
+  3. See **My Transactions** directly on homepage (or tap the bright sticky **📌 My Transactions** label at top-right) and tap any transaction
   4. Press the voice button to hear amount, person name, and time
 - A mobile-friendly React UI for smaller screens.
+- If transactions service is down, demo transactions are still shown so the homepage section stays visible.
 
 ## Architecture
 - `backend/` (existing): starter payment API service on port `8080`
@@ -23,24 +24,6 @@ cd services/transactions
 go run .
 ```
 Runs on `http://localhost:8081`.
-A starter full-stack UPI-style app focused on accessibility for blind and low-vision users.
-
-## Key feature
-- Open any payment and press **Speak payment details**.
-- The app reads out: **amount paid**, **person name**, and **payment time** using browser speech synthesis.
-
-## Stack
-- **Frontend**: React + TypeScript + Vite (`frontend/`)
-- **Backend**: Go (`backend/`)
-
-## Run locally
-
-### 1) Start backend
-```bash
-cd backend
-go run .
-```
-Backend runs on `http://localhost:8080`.
 
 ### 2) Start frontend
 ```bash
@@ -60,16 +43,5 @@ Example request:
 {
   "amount": 320.5,
   "counterparty": "Ananya"
-Frontend runs on `http://localhost:5173`.
-
-## API
-- `GET /api/payments` → list recent payments
-- `POST /api/payments` → create payment
-
-Example request body:
-```json
-{
-  "amount": 320.5,
-  "payerName": "Ananya"
 }
 ```
