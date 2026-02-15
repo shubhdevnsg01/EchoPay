@@ -1,7 +1,6 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 type UserID = 'user-a' | 'user-b';
-
 type Direction = 'sent' | 'received';
 
 type Transaction = {
@@ -54,25 +53,16 @@ const speechText = (entry: Transaction): string => {
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserID | null>(null);
-  const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [amount, setAmount] = useState<string>('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [amount, setAmount] = useState('');
   const [logs, setLogs] = useState<Transaction[]>([]);
-  const [selectedId, setSelectedId] = useState<string>('');
-  const [status, setStatus] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [selectedId, setSelectedId] = useState('');
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const logsSectionRef = useRef<HTMLElement | null>(null);
-
-  const selectedEntry = useMemo(
-    () => logs.find((entry) => entry.id === selectedId) ?? null,
-    [logs, selectedId]
-  );
-
-  const scrollToLogs = (): void => {
-    logsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  const selectedEntry = useMemo(() => logs.find((entry) => entry.id === selectedId) ?? null, [logs, selectedId]);
 
   const loadLogsForUser = async (user: UserID): Promise<void> => {
     const response = await fetch(`${apiBase}/api/channels/${user}/transactions`);
@@ -82,9 +72,7 @@ export default function App() {
 
     const payload = (await response.json()) as Transaction[];
     setLogs(payload);
-    if (payload.length > 0) {
-      setSelectedId(payload[0].id);
-    }
+    setSelectedId(payload[0]?.id ?? '');
   };
 
   useEffect(() => {
@@ -98,7 +86,7 @@ export default function App() {
       .finally(() => setLoading(false));
   }, [currentUser]);
 
-  const handleLogin = async (event: FormEvent): Promise<void> => {
+  const handleLogin = (event: FormEvent): void => {
     event.preventDefault();
     setError('');
     setStatus('');
@@ -108,7 +96,7 @@ export default function App() {
     );
 
     if (!found) {
-      setError('Invalid username or password. Try usera/pass@123 or userb/pass@123');
+      setError('Invalid username or password.');
       return;
     }
 
@@ -122,7 +110,7 @@ export default function App() {
     setLogs([]);
     setSelectedId('');
     setAmount('');
-    setStatus('Logged out successfully.');
+    setStatus('You have been logged out.');
     setError('');
   };
 
@@ -145,11 +133,7 @@ export default function App() {
     const response = await fetch(`${apiBase}/api/channels/transfer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fromUser: currentUser,
-        toUser,
-        amount: numericAmount
-      })
+      body: JSON.stringify({ fromUser: currentUser, toUser, amount: numericAmount })
     });
 
     if (!response.ok) {
@@ -160,7 +144,6 @@ export default function App() {
     setAmount('');
     setStatus(`${userLabel[currentUser]} sent ${formatAmount(numericAmount)} to ${userLabel[toUser]}.`);
     await loadLogsForUser(currentUser);
-    scrollToLogs();
   };
 
   const speak = (entry: Transaction | null): void => {
@@ -177,37 +160,44 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <main className="app-shell centered">
-        <section className="card login-card" aria-label="Login page">
-          <h1>EchoPay Login</h1>
-          <p className="muted">Login as User A or User B to access your payment window and logs.</p>
-          <form onSubmit={handleLogin}>
-            <label>
-              Username
-              <input
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder="usera or userb"
-                autoComplete="username"
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter password"
-                autoComplete="current-password"
-              />
-            </label>
-            <button type="submit" className="primary">
-              Login
-            </button>
-          </form>
-          <p className="muted small">Demo credentials: usera/pass@123, userb/pass@123</p>
-          {error ? <p className="error">{error}</p> : null}
-          {status ? <p className="info">{status}</p> : null}
+      <main className="page login-page">
+        <section className="auth-shell" aria-label="Login page">
+          <div className="brand-panel card">
+            <p className="eyebrow">EchoPay</p>
+            <h1>Accessible Two-User Payments</h1>
+            <p className="muted">Securely login to your account and manage transfers with voice-ready transaction logs.</p>
+          </div>
+
+          <div className="card auth-card">
+            <h2>Sign in</h2>
+            <form onSubmit={handleLogin} className="stack">
+              <label>
+                Username
+                <input
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="Enter username"
+                  autoComplete="username"
+                />
+              </label>
+              <label>
+                Password
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                />
+              </label>
+              <button type="submit" className="primary">
+                Login
+              </button>
+            </form>
+            <p className="hint">Demo users: usera / pass@123 and userb / pass@123</p>
+            {error ? <p className="error">{error}</p> : null}
+            {status ? <p className="info">{status}</p> : null}
+          </div>
         </section>
       </main>
     );
@@ -216,35 +206,31 @@ export default function App() {
   const otherUser = counterpartyOf(currentUser);
 
   return (
-    <main className="app-shell">
-      <header>
-        <h1>{userLabel[currentUser]} Dashboard</h1>
-        <p>
-          You are logged in as {userLabel[currentUser]}. Send money only to {userLabel[otherUser]} and review your own
-          logs.
-        </p>
+    <main className="page app-shell">
+      <header className="topbar card">
+        <div>
+          <p className="eyebrow">Logged in</p>
+          <h1>{userLabel[currentUser]} Dashboard</h1>
+          <p className="muted">Send money to {userLabel[otherUser]} and monitor your personal payment history.</p>
+        </div>
         <button type="button" className="secondary" onClick={handleLogout}>
           Logout
         </button>
       </header>
 
-      <button type="button" className="transactions-beacon" onClick={scrollToLogs}>
-        📌 Jump to My Logs
-      </button>
-
       {error ? <p className="error">{error}</p> : null}
       {status ? <p className="info">{status}</p> : null}
 
-      <section className="single-grid" aria-label="Single user payment window">
+      <section className="dashboard-grid" aria-label="User dashboard">
         <form className="card" onSubmit={handleSendMoney}>
           <h2>Send Money</h2>
-          <p className="muted">Allowed receiver: {userLabel[otherUser]}</p>
+          <p className="muted">Receiver: {userLabel[otherUser]}</p>
           <label>
             Amount
             <input
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
-              placeholder="Enter amount"
+              placeholder="0.00"
               inputMode="decimal"
             />
           </label>
@@ -253,11 +239,11 @@ export default function App() {
           </button>
         </form>
 
-        <section className="card" ref={logsSectionRef} aria-label="Logged in user payment logs">
-          <h2>{userLabel[currentUser]} Payment Logs</h2>
-          {loading ? <p className="muted">Loading...</p> : null}
+        <section className="card" aria-label="Payment logs">
+          <h2>{userLabel[currentUser]} Logs</h2>
+          {loading ? <p className="muted">Loading logs...</p> : null}
           <div className="transactions-list">
-            {logs.length === 0 && !loading ? <p className="muted">No logs yet.</p> : null}
+            {!loading && logs.length === 0 ? <p className="muted">No transactions yet.</p> : null}
             {logs.map((entry) => (
               <button
                 key={entry.id}
