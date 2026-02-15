@@ -72,7 +72,7 @@ export default function App() {
 
     const payload = (await response.json()) as Transaction[];
     setLogs(payload);
-    setSelectedId(payload[0]?.id ?? '');
+    setSelectedId((current) => (payload.some((entry) => entry.id === current) ? current : (payload[0]?.id ?? '')));
   };
 
   useEffect(() => {
@@ -84,6 +84,22 @@ export default function App() {
     loadLogsForUser(currentUser)
       .catch(() => setError('Could not load logs. Ensure transactions service is running on port 8081.'))
       .finally(() => setLoading(false));
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      loadLogsForUser(currentUser).catch(() => {
+        // keep existing UI state and retry on next interval
+      });
+    }, 2000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [currentUser]);
 
   const handleLogin = (event: FormEvent): void => {
@@ -211,7 +227,7 @@ export default function App() {
         <div>
           <p className="eyebrow">Logged in</p>
           <h1>{userLabel[currentUser]} Dashboard</h1>
-          <p className="muted">Send money to {userLabel[otherUser]} and monitor your personal payment history.</p>
+          <p className="muted">Send money to {userLabel[otherUser]} and monitor your personal payment history. Logs auto-sync every 2 seconds.</p>
         </div>
         <button type="button" className="secondary" onClick={handleLogout}>
           Logout
