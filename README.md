@@ -11,13 +11,14 @@ EchoPay is a full-stack accessibility-first UPI demo for blind and low-vision us
   - their own payment logs
   - voice playback for selected log entries
 - Logout/login switches between user dashboards while preserving logs because logs are stored in transactions service memory.
+- Logs auto-sync in active sessions (near real-time polling).
 
 ## Architecture
 - `backend/` (existing): starter payment API service on port `8080`.
 - `services/transactions/` (updated): two-user channel service on port `8081`.
 - `frontend/`: React app with one login page and user-specific dashboard.
 
-## Run locally
+## Run locally (dev)
 
 ### 1) Start transactions microservice
 ```bash
@@ -33,6 +34,24 @@ npm install
 npm run dev
 ```
 Runs on `http://localhost:5173`.
+
+## Deploy (Docker Compose)
+From repository root:
+
+```bash
+docker compose up --build -d
+```
+
+Services:
+- Frontend: `http://localhost:5173`
+- Transactions API: `http://localhost:8081`
+- Backend API: `http://localhost:8080`
+
+Stop deployment:
+
+```bash
+docker compose down
+```
 
 ## Transactions API (two-user channel)
 - `GET /api/channels/user-a/transactions`
