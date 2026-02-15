@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: echopay-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+
+  transactions:
+    build:
+      context: ./services/transactions
+    container_name: echopay-transactions
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: echopay-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - transactions
+    ports:
+      - "5173:80"
