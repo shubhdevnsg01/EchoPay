@@ -210,7 +210,7 @@ export default function App() {
                 Login
               </button>
             </form>
-            <p className="hint">Demo users: usera / pass@123 and userb / pass@123</p>
+            <p className="hint"></p>
             {error ? <p className="error">{error}</p> : null}
             {status ? <p className="info">{status}</p> : null}
           </div>
@@ -226,8 +226,8 @@ export default function App() {
       <header className="topbar card">
         <div>
           <p className="eyebrow">Logged in</p>
-          <h1>{userLabel[currentUser]} Dashboard</h1>
-          <p className="muted">Send money to {userLabel[otherUser]} and monitor your personal payment history. Logs auto-sync every 2 seconds.</p>
+          <h1>{userLabel[currentUser]}</h1>
+          <p className="muted"></p>
         </div>
         <button type="button" className="secondary" onClick={handleLogout}>
           Logout
@@ -240,7 +240,7 @@ export default function App() {
       <section className="dashboard-grid" aria-label="User dashboard">
         <form className="card" onSubmit={handleSendMoney}>
           <h2>Send Money</h2>
-          <p className="muted">Receiver: {userLabel[otherUser]}</p>
+          
           <label>
             Amount
             <input
@@ -251,7 +251,7 @@ export default function App() {
             />
           </label>
           <button type="submit" className="primary">
-            Send to {userLabel[otherUser]}
+            Send 
           </button>
         </form>
 
