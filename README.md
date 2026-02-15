@@ -3,17 +3,19 @@
 EchoPay is a full-stack accessibility-first UPI demo for blind and low-vision users.
 
 ## What was added
-- Exactly **two users only** with two separate windows:
-  - **User A window**
-  - **User B window**
-- Transfers are allowed only between these two users via a single channel (`user-a <-> user-b`).
-- Each user has a separate transaction log panel, and each can select an item and use voice playback.
-- A sticky "Jump to User Logs" button keeps the logs discoverable.
+- Exactly **two users only** with one login page and separate dashboards:
+  - **User A** (`usera / pass@123`)
+  - **User B** (`userb / pass@123`)
+- After login, each user sees:
+  - their own send-money dialog (can send only to the other user)
+  - their own payment logs
+  - voice playback for selected log entries
+- Logout/login switches between user dashboards while preserving logs because logs are stored in transactions service memory.
 
 ## Architecture
 - `backend/` (existing): starter payment API service on port `8080`.
 - `services/transactions/` (updated): two-user channel service on port `8081`.
-- `frontend/`: React app with two user windows and separate logs.
+- `frontend/`: React app with one login page and user-specific dashboard.
 
 ## Run locally
 

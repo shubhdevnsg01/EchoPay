@@ -14,9 +14,15 @@ body {
 }
 
 .app-shell {
-  max-width: 1100px;
+  max-width: 980px;
   margin: 0 auto;
   padding: 1rem;
+}
+
+.centered {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
 }
 
 header h1 {
@@ -53,15 +59,18 @@ header p {
   color: #94a3b8;
 }
 
-.transfer-grid,
-.logs-grid {
+.small {
+  font-size: 0.9rem;
+}
+
+.single-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.logs-grid {
-  margin-top: 1rem;
+.login-card {
+  width: min(420px, 100%);
 }
 
 .card {
@@ -88,6 +97,7 @@ input {
 }
 
 .primary,
+.secondary,
 .voice,
 .transaction-item {
   width: 100%;
@@ -103,11 +113,18 @@ input {
   font-weight: 700;
 }
 
+.secondary {
+  margin-top: 0.4rem;
+  max-width: 200px;
+  background: #334155;
+  color: #e2e8f0;
+}
+
 .transactions-list {
   display: grid;
   gap: 0.75rem;
   margin-bottom: 0.8rem;
-  max-height: 320px;
+  max-height: 360px;
   overflow: auto;
 }
 
@@ -138,8 +155,7 @@ input {
 }
 
 @media (max-width: 900px) {
-  .transfer-grid,
-  .logs-grid {
+  .single-grid {
     grid-template-columns: 1fr;
   }
 }

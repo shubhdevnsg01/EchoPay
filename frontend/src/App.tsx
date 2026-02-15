@@ -14,7 +14,18 @@ type Transaction = {
   createdAt: string;
 };
 
+type Credentials = {
+  username: string;
+  password: string;
+  userId: UserID;
+};
+
 const apiBase = 'http://localhost:8081';
+
+const allowedCredentials: Credentials[] = [
+  { username: 'usera', password: 'pass@123', userId: 'user-a' },
+  { username: 'userb', password: 'pass@123', userId: 'user-b' }
+];
 
 const userLabel: Record<UserID, string> = {
   'user-a': 'User A',
@@ -42,74 +53,103 @@ const speechText = (entry: Transaction): string => {
 };
 
 export default function App() {
-  const [logs, setLogs] = useState<Record<UserID, Transaction[]>>({ 'user-a': [], 'user-b': [] });
-  const [amountByUser, setAmountByUser] = useState<Record<UserID, string>>({ 'user-a': '', 'user-b': '' });
-  const [selectedByUser, setSelectedByUser] = useState<Record<UserID, string>>({ 'user-a': '', 'user-b': '' });
+  const [currentUser, setCurrentUser] = useState<UserID | null>(null);
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [amount, setAmount] = useState<string>('');
+  const [logs, setLogs] = useState<Transaction[]>([]);
+  const [selectedId, setSelectedId] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const logsSectionRef = useRef<HTMLElement | null>(null);
 
-  const selectedA = useMemo(
-    () => logs['user-a'].find((entry) => entry.id === selectedByUser['user-a']) ?? null,
-    [logs, selectedByUser]
-  );
-  const selectedB = useMemo(
-    () => logs['user-b'].find((entry) => entry.id === selectedByUser['user-b']) ?? null,
-    [logs, selectedByUser]
+  const selectedEntry = useMemo(
+    () => logs.find((entry) => entry.id === selectedId) ?? null,
+    [logs, selectedId]
   );
 
   const scrollToLogs = (): void => {
     logsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const loadUserLogs = async (user: UserID): Promise<Transaction[]> => {
+  const loadLogsForUser = async (user: UserID): Promise<void> => {
     const response = await fetch(`${apiBase}/api/channels/${user}/transactions`);
     if (!response.ok) {
       throw new Error('Unable to fetch logs');
     }
-    return (await response.json()) as Transaction[];
-  };
 
-  const refreshAllLogs = async (): Promise<void> => {
-    const [aLogs, bLogs] = await Promise.all([loadUserLogs('user-a'), loadUserLogs('user-b')]);
-    setLogs({ 'user-a': aLogs, 'user-b': bLogs });
-
-    if (aLogs.length > 0) {
-      setSelectedByUser((current) => ({ ...current, 'user-a': current['user-a'] || aLogs[0].id }));
-    }
-    if (bLogs.length > 0) {
-      setSelectedByUser((current) => ({ ...current, 'user-b': current['user-b'] || bLogs[0].id }));
+    const payload = (await response.json()) as Transaction[];
+    setLogs(payload);
+    if (payload.length > 0) {
+      setSelectedId(payload[0].id);
     }
   };
 
   useEffect(() => {
-    refreshAllLogs()
-      .catch(() => {
-        setError('Transactions service not reachable on port 8081.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+    if (!currentUser) {
+      return;
+    }
 
-  const transferFrom = (fromUser: UserID) => async (event: FormEvent): Promise<void> => {
+    setLoading(true);
+    loadLogsForUser(currentUser)
+      .catch(() => setError('Could not load logs. Ensure transactions service is running on port 8081.'))
+      .finally(() => setLoading(false));
+  }, [currentUser]);
+
+  const handleLogin = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
     setError('');
     setStatus('');
 
-    const amount = Number(amountByUser[fromUser]);
-    if (Number.isNaN(amount) || amount <= 0) {
-      setError(`Enter a valid amount for ${userLabel[fromUser]}.`);
+    const found = allowedCredentials.find(
+      (entry) => entry.username === username.trim().toLowerCase() && entry.password === password
+    );
+
+    if (!found) {
+      setError('Invalid username or password. Try usera/pass@123 or userb/pass@123');
       return;
     }
 
-    const toUser = counterpartyOf(fromUser);
+    setCurrentUser(found.userId);
+    setUsername('');
+    setPassword('');
+  };
+
+  const handleLogout = (): void => {
+    setCurrentUser(null);
+    setLogs([]);
+    setSelectedId('');
+    setAmount('');
+    setStatus('Logged out successfully.');
+    setError('');
+  };
+
+  const handleSendMoney = async (event: FormEvent): Promise<void> => {
+    event.preventDefault();
+    if (!currentUser) {
+      return;
+    }
+
+    setError('');
+    setStatus('');
+
+    const numericAmount = Number(amount);
+    if (Number.isNaN(numericAmount) || numericAmount <= 0) {
+      setError('Enter a valid amount.');
+      return;
+    }
+
+    const toUser = counterpartyOf(currentUser);
     const response = await fetch(`${apiBase}/api/channels/transfer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromUser, toUser, amount })
+      body: JSON.stringify({
+        fromUser: currentUser,
+        toUser,
+        amount: numericAmount
+      })
     });
 
     if (!response.ok) {
@@ -117,10 +157,9 @@ export default function App() {
       return;
     }
 
-    setAmountByUser((current) => ({ ...current, [fromUser]: '' }));
-    setStatus(`${userLabel[fromUser]} sent ${formatAmount(amount)} to ${userLabel[toUser]}.`);
-
-    await refreshAllLogs();
+    setAmount('');
+    setStatus(`${userLabel[currentUser]} sent ${formatAmount(numericAmount)} to ${userLabel[toUser]}.`);
+    await loadLogsForUser(currentUser);
     scrollToLogs();
   };
 
@@ -136,81 +175,108 @@ export default function App() {
     window.speechSynthesis.speak(utterance);
   };
 
+  if (!currentUser) {
+    return (
+      <main className="app-shell centered">
+        <section className="card login-card" aria-label="Login page">
+          <h1>EchoPay Login</h1>
+          <p className="muted">Login as User A or User B to access your payment window and logs.</p>
+          <form onSubmit={handleLogin}>
+            <label>
+              Username
+              <input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="usera or userb"
+                autoComplete="username"
+              />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter password"
+                autoComplete="current-password"
+              />
+            </label>
+            <button type="submit" className="primary">
+              Login
+            </button>
+          </form>
+          <p className="muted small">Demo credentials: usera/pass@123, userb/pass@123</p>
+          {error ? <p className="error">{error}</p> : null}
+          {status ? <p className="info">{status}</p> : null}
+        </section>
+      </main>
+    );
+  }
+
+  const otherUser = counterpartyOf(currentUser);
+
   return (
     <main className="app-shell">
       <header>
-        <h1>EchoPay Two-User Channel</h1>
-        <p>Only two users can transfer money between each other. Each user has a separate log window.</p>
+        <h1>{userLabel[currentUser]} Dashboard</h1>
+        <p>
+          You are logged in as {userLabel[currentUser]}. Send money only to {userLabel[otherUser]} and review your own
+          logs.
+        </p>
+        <button type="button" className="secondary" onClick={handleLogout}>
+          Logout
+        </button>
       </header>
 
       <button type="button" className="transactions-beacon" onClick={scrollToLogs}>
-        📌 Jump to User Logs
+        📌 Jump to My Logs
       </button>
 
       {error ? <p className="error">{error}</p> : null}
       {status ? <p className="info">{status}</p> : null}
 
-      <section className="transfer-grid" aria-label="Transfer windows">
-        {(['user-a', 'user-b'] as UserID[]).map((user) => (
-          <form key={user} className="card" onSubmit={transferFrom(user)}>
-            <h2>{userLabel[user]} Window</h2>
-            <p className="muted">Can send only to {userLabel[counterpartyOf(user)]}</p>
-            <label>
-              Amount to send
-              <input
-                value={amountByUser[user]}
-                onChange={(event) =>
-                  setAmountByUser((current) => ({
-                    ...current,
-                    [user]: event.target.value
-                  }))
-                }
-                placeholder="Enter amount"
-                inputMode="decimal"
-              />
-            </label>
-            <button type="submit" className="primary">
-              Send to {userLabel[counterpartyOf(user)]}
-            </button>
-          </form>
-        ))}
-      </section>
+      <section className="single-grid" aria-label="Single user payment window">
+        <form className="card" onSubmit={handleSendMoney}>
+          <h2>Send Money</h2>
+          <p className="muted">Allowed receiver: {userLabel[otherUser]}</p>
+          <label>
+            Amount
+            <input
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="Enter amount"
+              inputMode="decimal"
+            />
+          </label>
+          <button type="submit" className="primary">
+            Send to {userLabel[otherUser]}
+          </button>
+        </form>
 
-      <section className="logs-grid" ref={logsSectionRef} aria-label="Separate user logs">
-        {(['user-a', 'user-b'] as UserID[]).map((user) => {
-          const selected = user === 'user-a' ? selectedA : selectedB;
-          return (
-            <article key={user} className="card">
-              <h2>{userLabel[user]} Log</h2>
-              {loading ? <p className="muted">Loading...</p> : null}
-              <div className="transactions-list">
-                {logs[user].map((entry) => (
-                  <button
-                    key={entry.id}
-                    className={`transaction-item ${selectedByUser[user] === entry.id ? 'selected' : ''}`}
-                    onClick={() =>
-                      setSelectedByUser((current) => ({
-                        ...current,
-                        [user]: entry.id
-                      }))
-                    }
-                    aria-label={`${entry.direction} ${formatAmount(entry.amount)} ${userLabel[entry.counterparty]} ${formatTime(
-                      entry.createdAt
-                    )}`}
-                  >
-                    <strong>{entry.direction === 'sent' ? 'Sent to' : 'Received from'} {userLabel[entry.counterparty]}</strong>
-                    <span>{formatAmount(entry.amount)}</span>
-                    <span>{formatTime(entry.createdAt)}</span>
-                  </button>
-                ))}
-              </div>
-
-              <button type="button" className="voice" onClick={() => speak(selected)} disabled={!selected}>
-                🔊 Speak selected log
+        <section className="card" ref={logsSectionRef} aria-label="Logged in user payment logs">
+          <h2>{userLabel[currentUser]} Payment Logs</h2>
+          {loading ? <p className="muted">Loading...</p> : null}
+          <div className="transactions-list">
+            {logs.length === 0 && !loading ? <p className="muted">No logs yet.</p> : null}
+            {logs.map((entry) => (
+              <button
+                key={entry.id}
+                className={`transaction-item ${selectedId === entry.id ? 'selected' : ''}`}
+                onClick={() => setSelectedId(entry.id)}
+                aria-label={`${entry.direction} ${formatAmount(entry.amount)} ${userLabel[entry.counterparty]} ${formatTime(
+                  entry.createdAt
+                )}`}
+              >
+                <strong>{entry.direction === 'sent' ? 'Sent to' : 'Received from'} {userLabel[entry.counterparty]}</strong>
+                <span>{formatAmount(entry.amount)}</span>
+                <span>{formatTime(entry.createdAt)}</span>
               </button>
-            </article>
-          );
-        })}
+            ))}
+          </div>
+          <button type="button" className="voice" onClick={() => speak(selectedEntry)} disabled={!selectedEntry}>
+            🔊 Speak selected log
+          </button>
+        </section>
       </section>
     </main>
   );
