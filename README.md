@@ -53,6 +53,37 @@ Stop deployment:
 docker compose down
 ```
 
+## Share publicly for a short time (Cloudflare Tunnel)
+If your app is already running with Docker, you can expose it with a temporary public URL.
+
+1) Start EchoPay locally:
+```bash
+docker compose up --build -d
+```
+
+2) Install `cloudflared` on Windows (if `choco` is not installed):
+
+- Option A (preferred):
+```powershell
+winget install --id Cloudflare.cloudflared
+```
+
+- Option B (manual):
+  - Download `cloudflared-windows-amd64.exe` from Cloudflare releases.
+  - Rename it to `cloudflared.exe` and place it in a folder on your `PATH` (or run it from that folder).
+
+3) Create a public tunnel to frontend:
+```powershell
+cloudflared tunnel --url http://localhost:5173
+```
+
+4) Copy and share the generated `https://...trycloudflare.com` URL.
+
+### Important notes
+- Keep Docker containers and the tunnel process running, or the link stops working.
+- This is best for demos/short-term sharing.
+- For always-on hosting, deploy to a cloud service (for example Render/Fly.io/Railway free tiers, where available).
+
 ## Transactions API (two-user channel)
 - `GET /api/channels/user-a/transactions`
 - `GET /api/channels/user-b/transactions`
