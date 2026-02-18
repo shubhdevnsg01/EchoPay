@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type UserID = 'user-a' | 'user-b';
 type Direction = 'sent' | 'received';
@@ -51,6 +51,16 @@ const speechText = (entry: Transaction): string => {
   return `${formatAmount(entry.amount)} ${action} ${userLabel[entry.counterparty]} on ${formatTime(entry.createdAt)}`;
 };
 
+const newSeenMap = (): Record<UserID, Set<string>> => ({
+  'user-a': new Set<string>(),
+  'user-b': new Set<string>()
+});
+
+const newInitMap = (): Record<UserID, boolean> => ({
+  'user-a': false,
+  'user-b': false
+});
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserID | null>(null);
   const [username, setUsername] = useState('');
@@ -61,6 +71,20 @@ export default function App() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const seenLogIdsByUserRef = useRef<Record<UserID, Set<string>>>(newSeenMap());
+  const hasInitializedUserLogsRef = useRef<Record<UserID, boolean>>(newInitMap());
+
+  const speak = (entry: Transaction | null): void => {
+    if (!entry || !window.speechSynthesis) {
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(speechText(entry));
+    utterance.lang = 'en-IN';
+    utterance.rate = 0.95;
+    window.speechSynthesis.speak(utterance);
+  };
 
   const selectedEntry = useMemo(() => logs.find((entry) => entry.id === selectedId) ?? null, [logs, selectedId]);
 
@@ -71,6 +95,19 @@ export default function App() {
     }
 
     const payload = (await response.json()) as Transaction[];
+    const seenIds = seenLogIdsByUserRef.current[user];
+
+    const isInitialized = hasInitializedUserLogsRef.current[user];
+    if (isInitialized) {
+      const newIncomingEntry = payload.find((entry) => entry.direction === 'received' && !seenIds.has(entry.id)) ?? null;
+      if (newIncomingEntry) {
+        speak(newIncomingEntry);
+      }
+    }
+
+    payload.forEach((entry) => seenIds.add(entry.id));
+    hasInitializedUserLogsRef.current[user] = true;
+
     setLogs(payload);
     setSelectedId((current) => (payload.some((entry) => entry.id === current) ? current : (payload[0]?.id ?? '')));
   };
@@ -128,6 +165,8 @@ export default function App() {
     setAmount('');
     setStatus('You have been logged out.');
     setError('');
+    seenLogIdsByUserRef.current = newSeenMap();
+    hasInitializedUserLogsRef.current = newInitMap();
   };
 
   const handleSendMoney = async (event: FormEvent): Promise<void> => {
@@ -160,18 +199,6 @@ export default function App() {
     setAmount('');
     setStatus(`${userLabel[currentUser]} sent ${formatAmount(numericAmount)} to ${userLabel[toUser]}.`);
     await loadLogsForUser(currentUser);
-  };
-
-  const speak = (entry: Transaction | null): void => {
-    if (!entry || !window.speechSynthesis) {
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(speechText(entry));
-    utterance.lang = 'en-IN';
-    utterance.rate = 0.95;
-    window.speechSynthesis.speak(utterance);
   };
 
   if (!currentUser) {
