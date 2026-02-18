@@ -84,6 +84,32 @@ cloudflared tunnel --url http://localhost:5173
 - This is best for demos/short-term sharing.
 - For always-on hosting, deploy to a cloud service (for example Render/Fly.io/Railway free tiers, where available).
 
+
+## Deploy frontend on Vercel
+This repository is a monorepo. On Vercel, deploy the `frontend/` directory as a Vite project.
+
+### 1) Create a Vercel project
+- Import your GitHub repository in Vercel.
+- Set **Root Directory** to `frontend`.
+- Framework preset: **Vite**.
+- Build command: `npm run build`.
+- Output directory: `dist`.
+
+### 2) Configure environment variables in Vercel
+Set these in **Project Settings → Environment Variables**:
+
+- `TRANSACTIONS_API_BASE_URL` = public URL for transactions service (for example `https://<transactions-host>`)
+- `BACKEND_API_BASE_URL` = public URL for backend service (for example `https://<backend-host>`)
+
+The frontend uses Vercel serverless API proxy routes under `/api/*` to forward to those services.
+
+### 3) Redeploy
+Trigger a fresh deployment after saving variables. Vercel will host the React app and route:
+- `/api/channels/*` via `frontend/api/channels/...`
+- `/api/payments` via `frontend/api/payments.js`
+
+If you see a 404 on refresh, confirm `frontend/vercel.json` is present and that the project root is set to `frontend`.
+
 ## Transactions API (two-user channel)
 - `GET /api/channels/user-a/transactions`
 - `GET /api/channels/user-b/transactions`
