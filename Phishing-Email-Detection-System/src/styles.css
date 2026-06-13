@@ -1,0 +1,213 @@
+:root {
+  color: #e5eefb;
+  background: #08111f;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(34, 211, 238, 0.17), transparent 26rem),
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.18), transparent 28rem),
+    #08111f;
+}
+
+button, input, textarea { font: inherit; }
+
+.app-shell {
+  width: min(1180px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0;
+}
+
+.panel {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.84);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+  padding: 1.4rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 1.5rem;
+  align-items: center;
+  min-height: 280px;
+  margin-bottom: 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.45rem;
+  color: #67e8f9;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1, h2, h3 { margin-top: 0; }
+
+h1 {
+  max-width: 830px;
+  margin-bottom: 0.8rem;
+  font-size: clamp(2.8rem, 8vw, 5.8rem);
+  line-height: 0.92;
+}
+
+.hero-copy, p, small { color: #bfd2ea; }
+
+.hero-copy {
+  max-width: 720px;
+  font-size: 1.12rem;
+}
+
+.verdict-card {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(30, 41, 59, 0.78);
+  text-align: center;
+}
+
+.verdict-card strong {
+  font-size: 2.7rem;
+  line-height: 1;
+}
+
+.verdict-card.safe strong, .verdict-pill.safe { color: #86efac; }
+.verdict-card.suspicious strong, .verdict-pill.suspicious { color: #fde68a; }
+.verdict-card.phishing strong, .verdict-pill.phishing { color: #fecaca; }
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.two-column { grid-template-columns: 1fr 1fr; }
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.scanner, .results, .samples, .history { display: grid; gap: 0.85rem; }
+
+label {
+  display: grid;
+  gap: 0.4rem;
+  color: #e5eefb;
+  font-weight: 800;
+}
+
+input, textarea {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.72);
+  color: #e5eefb;
+  padding: 0.82rem 0.9rem;
+}
+
+textarea {
+  min-height: 220px;
+  resize: vertical;
+}
+
+input:focus, textarea:focus {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.16);
+  outline: none;
+}
+
+button {
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #22d3ee, #38bdf8);
+  color: #082f49;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0.82rem 1rem;
+}
+
+.score-bar {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(51, 65, 85, 0.9);
+}
+
+.score-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #facc15, #ef4444);
+  transition: width 180ms ease;
+}
+
+.finding-list { display: grid; gap: 0.75rem; }
+
+.finding, .history-card, .sample-card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.7);
+  padding: 1rem;
+}
+
+.finding h3 { margin-bottom: 0.35rem; }
+
+.severity, .verdict-pill {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 0.35rem 0.6rem;
+}
+
+.severity.low { background: rgba(34, 197, 94, 0.18); color: #bbf7d0; }
+.severity.medium { background: rgba(250, 204, 21, 0.18); color: #fef08a; }
+.severity.high { background: rgba(248, 113, 113, 0.18); color: #fecaca; }
+
+.sample-card {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  color: #e5eefb;
+  text-align: left;
+  background: rgba(30, 41, 59, 0.7);
+}
+
+.history-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.history-card div { display: grid; gap: 0.2rem; }
+
+.verdict-pill {
+  background: rgba(15, 23, 42, 0.86);
+  white-space: nowrap;
+}
+
+.empty-state {
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: 18px;
+  margin: 0;
+  padding: 1rem;
+}
+
+@media (max-width: 900px) {
+  .hero, .two-column { grid-template-columns: 1fr; }
+  .verdict-card { width: min(280px, 100%); justify-self: center; }
+  .section-heading, .history-card { align-items: stretch; flex-direction: column; }
+}
